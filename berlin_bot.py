@@ -17,7 +17,7 @@ logging.basicConfig(
 class WebDriver:
     def __init__(self):
         self._driver: webdriver.Edge
-        self._implicit_wait_time = 20
+        self._implicit_wait_time = 5
 
     def __enter__(self) -> webdriver.Edge:
         logging.info("Opening browser")
@@ -141,26 +141,31 @@ class BerlinBot:
         logging.info(f"Termin created at {place} for {person}")
 
     def handle_termins(self, driver):
-        for place_index in self.place_indexes:
-            self.select_ort(driver)
-            self.select_place(driver, place_index)
-            slots = self.select_termin(driver)
-
-            while slots and self.people_queue:
-                slot = slots.pop(0)
-                slot.click()
-                person = self.people_queue.pop(0)
-                self.choose_person(driver, person['index'])
-                self.create_termin(driver, place=f"Place {place_index}", person=person['name'])
+        # while self.people_queue:
+            for place_index in self.place_indexes:
+                self.select_ort(driver)
+                self.select_place(driver, place_index)
                 slots = self.select_termin(driver)
-                time.sleep(2)
 
-            if not slots:  
-                logging.info(f"No more slots at place index {place_index}. Moving to next place.")
+                while slots and self.people_queue:
+                    slot = slots.pop(0)
+                    slot.click()
+                    person = self.people_queue.pop(0)
+                    self.choose_person(driver, person['index'])
+                    self.create_termin(driver, place=f"Place {place_index}", person=person['name'])
+                    slots = self.select_termin(driver)
+                    time.sleep(1)
 
-            if not self.people_queue:
-                logging.info("All people have been assigned to terms.")
-                break
+                if not slots:  
+                    logging.info(f"No more slots at place index {place_index}. Moving to next place.")
+
+                if not self.people_queue:
+                    logging.info("All people have been assigned to terms.")
+                    break
+
+            # if not self.people_queue:
+            #     logging.info("All people have been assigned to terms.")
+            #     break
 
     def success(self):
         logging.info("!!!SUCCESS - do not close the window!!!!")
