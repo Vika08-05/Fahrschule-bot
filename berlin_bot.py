@@ -117,6 +117,13 @@ class BerlinBot:
         driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62_3"]').click()
 
     @staticmethod
+    def select_b_class(driver: webdriver.Edge):
+        logging.info("Selecting class")
+        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62"]').click()
+        time.sleep(1)
+        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62_4"]').click()
+
+    @staticmethod
     def reset_to_current_week(driver: webdriver.Edge):
         logging.info("Resetting to approximately four weeks back")
         try:
@@ -215,6 +222,7 @@ class BerlinBot:
 
                 else:
                     for _ in range(5):
+                        self.select_b_class(driver)
                         slots = self.the_next_week(driver)
                         if not slots:
                             logging.info("No more slots available, moving to the next place.")
