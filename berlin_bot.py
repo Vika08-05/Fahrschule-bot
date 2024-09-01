@@ -7,8 +7,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import winsound
 
-current_platform = platform_system()
-
 logging.basicConfig(
     format='%(asctime)s\t%(levelname)s\t%(message)s',
     level=logging.INFO,
@@ -16,10 +14,10 @@ logging.basicConfig(
 
 class WebDriver:
     def __init__(self):
-        self._driver: webdriver.Edge
+        self._driver = None
         self._implicit_wait_time = 3
 
-    def __enter__(self) -> webdriver.Edge:
+    def __enter__(self):
         logging.info("Opening browser")
         options = webdriver.EdgeOptions()
         options.add_argument('--disable-blink-features=AutomationControlled')
@@ -31,16 +29,15 @@ class WebDriver:
         })
         return self._driver
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         logging.info("Closing browser")
-        if hasattr(self, '_driver'):
+        if self._driver:
             self._driver.quit()
 
 class BerlinBot:
     def __init__(self):
         self.wait_time = 3
         self._sound_file = os.path.join(os.getcwd(), "alarm.wav")
-        self._error_message = """There are currently no appointments available for the selected service! Please"""
         self.people_queue = [
             {"name": "Statnik, Illia", "index": 56},
             {"name": "Buiankova, Maiia", "index": 12},
@@ -67,119 +64,74 @@ class BerlinBot:
         ]
         self.place_indexes = [15, 10, 9, 12]
 
-    @staticmethod
-    def visit_start_page(driver: webdriver.Edge):
+    def visit_start_page(self, driver):
         login = "A194095"
         logging.info("Visiting start page")
         driver.get("https://dsp.dekra.de/login/xhtml/mainpage.jsf")
-        login_input = driver.find_element(By.XPATH, '//*[@id="loginForm-username"]')
-        login_input.send_keys(login)
+        driver.find_element(By.XPATH, '//*[@id="loginForm-username"]').send_keys(login)
 
-    @staticmethod
-    def enter_password(driver: webdriver.Edge):
+    def enter_password(self, driver):
         password = "Adventure704."
         logging.info("Entering password")
-        password_input = driver.find_element(By.XPATH, '//*[@id="loginForm-password"]')
-        password_input.send_keys(password)
+        driver.find_element(By.XPATH, '//*[@id="loginForm-password"]').send_keys(password)
 
-    @staticmethod
-    def confirm_login(driver: webdriver.Edge):
+    def confirm_login(self, driver):
         logging.info("Confirming login")
         driver.find_element(By.XPATH, '//*[@id="loginForm-loginLink"]').click()
 
-    @staticmethod
-    def click_first_option(driver: webdriver.Edge):
-        logging.info("Selecting first option")
-        driver.find_element(By.XPATH, '//*[@id="j_idt74-0-j_idt81-3-j_idt82-j_idt84-0-img-"]').click()
-
-    @staticmethod
-    def select_second_option(driver: webdriver.Edge):
-        logging.info("Selecting second option")
-        driver.find_element(By.XPATH, '//*[@id="header"]/ul[2]/li[3]/a').click()
-
-    @staticmethod
-    def select_ort(driver: webdriver.Edge):
-        logging.info("Selecting ort")
-        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt55"]').click()
+    def select_option(self, driver, option_xpath):
+        logging.info(f"Selecting option {option_xpath}")
+        driver.find_element(By.XPATH, option_xpath).click()
         time.sleep(1)
 
-    @staticmethod
-    def select_place(driver: webdriver.Edge, place_index):
-        logging.info(f"Selecting place {place_index}")
-        driver.find_element(By.XPATH, f'//*[@id="scheduling-panel-form:j_idt55_{place_index}"]').click()
-        time.sleep(1)
 
-    @staticmethod
-    def select_class(driver: webdriver.Edge):
-        logging.info("Selecting class")
-        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62"]').click()
-        time.sleep(1)
-        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62_3"]').click()
-
-    @staticmethod
-    def select_b_class(driver: webdriver.Edge):
-        logging.info("Selecting class")
-        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62"]').click()
-        time.sleep(1)
-        driver.find_element(By.XPATH, '//*[@id="scheduling-panel-form:j_idt62_4"]').click()
-
-    @staticmethod
-    def reset_to_current_week(driver: webdriver.Edge):
+    def reset_to_current_week(self, driver):
         logging.info("Resetting to approximately four weeks back")
-        try:
-            for _ in range(5):
-                prev_button = driver.find_element(By.XPATH, '//*[@id="scheduling-calendar-form"]/div/div[1]')
-                prev_button.click()
-                time.sleep(2)
-            logging.info("Returned approximately four weeks back.")
-        except Exception as e:
-            logging.error(f"An error occurred while resetting to four weeks back: {e}")
+        for _ in range(5):
+            try:
+                driver.find_element(By.XPATH, '//*[@id="scheduling-calendar-form"]/div/div[1]').click()
+                time.sleep(1)
+            except Exception as e:
+                logging.error(f"An error occurred while resetting to four weeks back: {e}")
+                break
+        logging.info("Returned approximately four weeks back.")
 
-    @staticmethod
-    def play_sound_for_duration(sound_file: str, duration: int):
+    def play_sound_for_duration(self, duration):
         """Play sound for a specific duration in seconds."""
         def play_sound():
-            winsound.PlaySound(sound_file, winsound.SND_FILENAME)
+            winsound.PlaySound(self._sound_file, winsound.SND_FILENAME)
         
         sound_thread = threading.Thread(target=play_sound)
         sound_thread.start()
         time.sleep(duration)
-        
         winsound.PlaySound(None, winsound.SND_PURGE)
 
-    @staticmethod
-    def create_termin(driver: webdriver.Edge, place: str, person: str):
+    def create_termin(self, driver, place, person):
         logging.info("Creating termin")
         driver.find_element(By.XPATH, '//*[@id="j_idt196:j_idt275"]').click()
-        logging.info("Termin created successfully")
-
-        BerlinBot.play_sound_for_duration(self._sound_file, 2)
-        
+        self.play_sound_for_duration(2)
         logging.info(f"Termin created at {place} for {person}")
 
-    @staticmethod
-    def select_termin(driver: webdriver.Edge):
+    def select_termin(self, driver):
         logging.info("Selecting termin")
-        slots = driver.find_elements(By.CSS_SELECTOR, '.slot.available')
-        return slots
+        return driver.find_elements(By.CSS_SELECTOR, '.slot.available')
+    
 
-    @staticmethod
-    def choose_person(driver: webdriver.Edge, person_index):
+    def choose_person(self, driver, person_index):
         logging.info(f"Selecting person with index {person_index}")
-        person_dropdown = driver.find_element(By.XPATH, '//*[@id="j_idt196:j_idt245"]')
-        person_dropdown.click()
+        driver.find_element(By.XPATH, '//*[@id="j_idt196:j_idt245"]').click()
+        time.sleep(1)
         driver.find_element(By.XPATH, f'//*[@id="j_idt196:j_idt245_{person_index}"]').click()
 
-    def the_next_week(self, driver: webdriver.Edge, max_weeks=5):
+    def the_next_week(self, driver, max_weeks=5):
         logging.info("Selecting next week")
         for i in range(max_weeks):
-            logging.info(f"Checking week {i+1}")
+            slots = self.select_termin(driver)
+            if slots:
+                logging.info("Available slots found.")
+                return slots
             try:
-                slots = BerlinBot.select_termin(driver)
-                if slots:
-                    logging.info("Available slots found.")
-                    return slots
-                driver.find_element(By.XPATH, f'//*[@id="scheduling-calendar-form"]/div/div[3]').click()
+                driver.find_element(By.XPATH, '//*[@id="scheduling-calendar-form"]/div/div[3]').click()
                 time.sleep(2)
             except Exception as e:
                 logging.error(f"An error occurred while selecting next week: {e}")
@@ -188,61 +140,88 @@ class BerlinBot:
         return []
 
     def handle_termins(self, driver):
+        cycle_count = 0
+        b_class_selected = False  
+
         while self.people_queue or self.bike_people_queue:
             for place_index in self.place_indexes:
-                self.select_ort(driver)
-                self.select_place(driver, place_index)
+                self.select_option(driver, '//*[@id="scheduling-panel-form:j_idt55"]')
+                time.sleep(1)
+                self.select_option(driver, f'//*[@id="scheduling-panel-form:j_idt55_{place_index}"]')
+                time.sleep(1)
 
                 if place_index == 15:
-                    self.select_class(driver)
-                    logging.info("Handling motorcycles. Clicking next week 4 times.")
+                    self.select_option(driver, '//*[@id="scheduling-panel-form:j_idt62"]')
+                    time.sleep(1)
+                    self.select_option(driver, '//*[@id="scheduling-panel-form:j_idt62_3"]')
+                    time.sleep(1)
                     
-                    for _ in range(4):
+                    logging.info("Handling motorcycles. Clicking next week 5 times.")
+                    for _ in range(5):
                         driver.find_element(By.XPATH, '//*[@id="scheduling-calendar-form"]/div/div[3]').click()
                         time.sleep(1)
 
-                    slots = BerlinBot.select_termin(driver)
+                    slots = self.select_termin(driver)
                     while slots and self.bike_people_queue:
                         slot = slots.pop(0)
                         try:
                             slot.click()
                             person = self.bike_people_queue.pop(0)
-                            BerlinBot.choose_person(driver, person['index'])
-                            BerlinBot.create_termin(driver, place=f"Place {place_index}", person=person['name'])
-                            slots = BerlinBot.select_termin(driver)
-                            time.sleep(1)
+                            
+                            if self.is_error_present(driver):
+                                logging.warning("Error detected, skipping to the next participant.")
+                                continue
+
+                            self.choose_person(driver, person['index'])
+                            self.create_termin(driver, f"Place {place_index}", person['name'])
+                            slots = self.select_termin(driver)
                         except Exception as e:
                             logging.error(f"Failed to click the slot or create termin: {e}")
-                            continue 
-                    
-                    logging.info("Resetting to the current week after handling motorcycles.")
+
                     self.reset_to_current_week(driver)
 
-                    continue
-
                 else:
+                    if not b_class_selected:
+                        self.select_option(driver, '//*[@id="scheduling-panel-form:j_idt62"]')
+                        time.sleep(1)
+                        self.select_option(driver, '//*[@id="scheduling-panel-form:j_idt62_4"]')
+                        b_class_selected = True  
+
                     for _ in range(5):
-                        self.select_b_class(driver)
                         slots = self.the_next_week(driver)
                         if not slots:
-                            logging.info("No more slots available, moving to the next place.")
                             break
-
                         while slots and self.people_queue:
                             slot = slots.pop(0)
                             try:
                                 slot.click()
                                 person = self.people_queue.pop(0)
-                                BerlinBot.choose_person(driver, person['index'])
-                                BerlinBot.create_termin(driver, place=f"Place {place_index}", person=person['name'])
-                                slots = BerlinBot.select_termin(driver)
-                                time.sleep(1)
+                                
+                                if self.is_error_present(driver):
+                                    logging.warning("Error detected, skipping to the next participant.")
+                                    continue
+
+                                self.choose_person(driver, person['index'])
+                                self.create_termin(driver, f"Place {place_index}", person['name'])
+                                slots = self.select_termin(driver)
                             except Exception as e:
                                 logging.error(f"Failed to click the slot or create termin: {e}")
-                                continue
 
-                    logging.info("Resetting to the current week after handling regular appointments.")
                     self.reset_to_current_week(driver)
+
+                cycle_count += 1
+
+                if cycle_count % 2 == 0:
+                    logging.info("Moving back a week after every 2rd cycle.")
+                    while True:
+                        back_button = driver.find_element(By.XPATH, '//*[@id="scheduling-calendar-form:j_idt75"]')
+                        if 'ui-state-disabled' in back_button.get_attribute('class'):
+                            logging.info("The back button is disabled, returning to the earliest possible week.") 
+                            break 
+                        back_button.click()     
+                        time.sleep(1)
+                    
+                logging.info("Returned to the earliest week. Continuing to search for appointments.")
 
                 logging.info(f"Moving to the next place after processing current place.")
                 continue
@@ -251,12 +230,23 @@ class BerlinBot:
                 logging.info("All people have been assigned to terms.")
                 break
 
+    def is_error_present(self, driver):
+        """Перевіряє наявність елемента з помилкою."""
+        try:
+            error_element = driver.find_element(By.XPATH, '//*[@id="j_idt196:dialogAppointmentS00001000000001742726055CBFNEUT13H20_content"]/ul[1]')
+            if error_element.is_displayed():
+                return True
+        except:
+            pass
+        return False
+
+
     def success(self):
         logging.info("!!!SUCCESS - do not close the window!!!!")
-        if current_platform == 'Windows':
+        if platform_system() == 'Windows':
             while True:
                 winsound.PlaySound(self._sound_file, winsound.SND_FILENAME)
-                time.sleep(5)
+                time.sleep(3)
         else:
             logging.info("Sound notification is only supported on Windows.")
 
@@ -266,8 +256,8 @@ class BerlinBot:
                 self.visit_start_page(driver)
                 self.enter_password(driver)
                 self.confirm_login(driver)
-                self.click_first_option(driver)
-                self.select_second_option(driver)
+                self.select_option(driver, '//*[@id="j_idt74-0-j_idt81-3-j_idt82-j_idt84-0-img-"]')
+                self.select_option(driver, '//*[@id="header"]/ul[2]/li[3]/a')
                 self.handle_termins(driver)
                 self.success()
             except Exception as e:
